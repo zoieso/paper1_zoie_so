@@ -1,0 +1,341 @@
+---
+title: "The Severe Cases among the COVID-19 Pandemic in Toronto"
+subtitle: "The factors that place people at higher risk of hospitalization"
+author: 
+  - Zoie So
+thanks: "Code and data are available at: https://github.com/zoieso/paper1_zoie_so"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+abstract: "The two years of the COVID-19 pandemic are significantly burdening the public healthcare system around the world. Along with the measures to combat the outbreak, a better understanding of the factors that place people at risk of severe cases that require hospitalization is an important step to ease the situation. This data set contains demographic and severity information for all confirmed cases in Toronto, which are reported to and managed by Toronto Public Health from January 2020-2022. This report utilizes the data set to (1) assess the rate of severe cases among all confirmed cases, and (2) examine the factors that lead to the severity in terms of age group, gender, and source of infection. Though there are limitations of unreported cases and types of data, it still underlies the high-risk groups and the factors that put patients in hospital to a certain extent."
+output:
+  bookdown::pdf_document2
+toc: FALSE
+bibliography: references.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(palmerpenguins)
+library(knitr)
+```
+
+# Introduction
+
+On 25 January 2020, the first case of COVID-19 in Canada was confirmed. Today, after two years of this global outbreak, over 3 million cases and 30,000 related deaths are reported in Canada (Government of Canada, 2022). Meanwhile, Canada is still breaking records in new cases and hospital overcrowding. It is undeniable that everyone is being affected and still living in the haze of the COVID-19 pandemic. More importantly, this COVID-19 crisis leads to a massive increase in healthcare costs and burdens. In 2021, Canada has spent a new record of $308 billion on healthcare, influenced by the ongoing pandemic (CIHI, 2021). More than 12% of health spending has been rose from 2019 to 2020, which is the highest level seen in decades (CIHI, 2021). Not to mention the burnout in healthcare workers that can be read on the news every day, in an even worse case, patients are required to postpone or change their medical treatments in response to the overflowing hospital settings (Statistics Canada, 2021). Given the importance to lighten this enormous pressure on the Canadian healthcare system, it is key to gain a greater understanding of the factors that lead to severity and hospitalization.
+
+In this report, the open-access data from the City of Toronto and the provincial Case & Contact Management System (CCM) is used to explore the relationship of the severe cases, confirmed cases, and other factors. The rate of severe cases among all confirmed cases would be evaluated in Section \@ref(data). Then, the severity demographic and profiles in terms of age group, gender, and source of infection would be examined. Other than that, the possible factors of severity, some suggestions to ease the healthcare burdens, and the weakness of the data set would be also discussed.  
+
+# Data
+
+To assess the rate of severe cases and examine the factors of severity cases over the pandemic, the COVID-19 Cases in Toronto (Toronto Public Health, 2022) from the Toronto Open Data portal (Gelfand, 2020) is utilized in this report. The data set is collected and published by Toronto Public Health. This raw data set records demographic, geographic, and severity information for all confirmed and probable cases reported to and managed by Toronto Public Health since the first case was reported in January 2020. The last update was on 26 January 2022. The data set is processed and analyzed in R (R Core Team, 2020) primarily using the tidyverse (Wickham et al., 2019) and palmerpenguins (Horst, et al., 2020) packages.
+
+To begin with the analysis, it starts with cleaning and extracting the necessary data. The probable cases are excluded, while confirmed cases are all kept. Apart from this, the outbreak associated and neighborhood are also excluded as the given categories are either too narrow or wide. Then, the age group and source of infection are combined as a larger group for easier review. As a final step, a new column of severe cases is created by grouping the patients that were ever hospitalized, ever in ICU, and ever intubated during their infection. These types of patients are defined as severe cases because of the use of hospital resources, which is conducive to the further investigation of the relationship between severe cases and healthcare burden. After that, figures are created to explain the factors of severe cases with ggplot2 (Wickham 2016). The packages dplyr (Wickham, et al., 2021), janitor (Zablotski, 2021), knitr (Xie, 2021) and, lubridate (Grolemund, et al., 2011) are used to generate the R markdown report.
+
+## The severity
+
+Table \@ref(tab:severecasetable) shows the rate of severe cases among all confirmed cases, which is nearly 5%. It means 5 patients require hospitalization per 100 confrimed cases. Additionally, COIVD-19 has ranked to be the third leading cause of death as an infectious disease in 2020 (Statistics Canada, 2021). It must ramp up the usage in hospitals. It is a significant relationship between severity and burden of hospitalization. In Figure \@ref(fig:severecasegraph), the changes in the total number of severe cases are barely noticeable over time. To take a closer look, the number of severe cases did increase following the growth of confirmed cases. The top three examples are in January 2021, April 2021, and January 2022. Despite this, the changes in the proportion of severe cases and all confirmed cases are remarkable. The gap is particularly clear in January 2022, while the confirmed cases hit the record of 4,000, the number of severe cases still has not grown so many.
+
+A possible reason for the steady severe cases rate maybe the severity of the virus variant itself. Alpha, Beta, Gamma, and Delta variants in the mid-2021, are normally considered to trigger the more serious symptoms compared to Omicron which outbreaks in the late-2021 (Public Health Agency of Canada, 2021). It might be also contributed by the high vaccination coverage, plus the effective measures protecting high-risk groups and reducing the severity profile of the disease. However, the low hospitalization rate can be caused by the disruption in healthcare service delivery. Some people may experience trouble accessing helps even though they have the needs due to the overwhelmed in hospitals. Therefore, the actions to ease the healthcare burden are still essential.
+
+```{r severecasegraph, fig.cap="The numbers of confirmed cases and severe cases by date", echo = FALSE, message = FALSE, warning = FALSE, fig.width = 8, fig.height = 5}
+
+####covid case
+
+#install.packages("janitor")
+#install.packages("dplyr")
+#install.packages("lubridate")
+#install.packages("knitr")
+#install.packages("ggplot2")
+library("janitor")
+library("dplyr")
+library("lubridate")
+library("knitr")
+library("ggplot2")
+
+data <- read_csv("C:\\Users\\User\\Desktop\\starter_folder-main\\starter_folder-main\\inputs\\data\\covid19_data.csv")
+
+# data cleaning
+clean_covid_data <-
+  clean_names(data)
+
+# data selection: step 1  
+clean_covid_data <-
+  clean_covid_data|>
+  filter(classification == "CONFIRMED")|> 
+  select(age_group, source_of_infection, reported_date, client_gender, ever_hospitalized, ever_in_icu, ever_intubated)
+
+# data grouping: age
+clean_covid_data <-
+  clean_covid_data|>
+  mutate(
+    age_group_new = dplyr::case_when(
+             age_group <= "19 and younger" ~ "<19",
+             age_group <= "20 to 29 Years" ~ "20-39",
+             age_group <= "30 to 39 Years" ~ "20-39",
+             age_group <= "40 to 49 Years" ~ "40-59",
+             age_group <= "50 to 59 Years" ~ "40-59",
+             age_group <= "60 to 69 Years" ~ ">60",
+             age_group <= "70 to 79 Years" ~ ">60",
+             age_group <= "80 to 89 Years" ~ ">60",
+             age_group <= "90 and older" ~ ">60",
+             age_group <= "NA" ~ "N/A",
+             TRUE ~ "N/A"
+             ))
+
+# data grouping: source of infection
+clean_covid_data <-
+  clean_covid_data|>
+  mutate(
+    source_of_infection_new = dplyr::case_when(
+             source_of_infection <= "Close Contact" ~ "Close Contact",
+             source_of_infection <= "Community" ~ "Community",
+             source_of_infection <= "Household Contact" ~ "Household Contact",
+             source_of_infection <= "No Information" ~ "No Information",
+             source_of_infection <= "Outbreaks, Congregate Setting" ~ "Congregate Setting",
+             source_of_infection <= "Outbreaks, Healthcare Institutions" ~ "Healthcare Institutions",
+             source_of_infection <= "Outbreaks, Other Settings" ~ "Others",
+             source_of_infection <= "Pending" ~ "No Information",
+             source_of_infection <= "Travel" ~ "Imported cases (Travel)",
+             TRUE ~ "No Information"
+             ))
+
+# data grouping: fatal_case
+clean_covid_data <-
+  clean_covid_data|>
+  mutate(severe_case = if_else(ever_hospitalized == "Yes"|
+                                ever_in_icu == "Yes"|
+                                ever_intubated == "Yes",
+                              "Yes",
+                              "No"))
+                              
+# data selection: step 2  
+clean_covid_data_v2 <-
+  clean_covid_data|>
+  select(age_group_new, source_of_infection_new, reported_date, client_gender, severe_case)
+
+# build graph 1 - all cases:
+for_all_cases <-
+  clean_covid_data_v2|>
+  count(reported_date)|>
+  rename(all_cases = n)
+
+severe_case_count <-
+    clean_covid_data_v2|>
+           count(reported_date, severe_case, "count")|> 
+           select(reported_date, severe_case, n)|>
+           filter(severe_case == c("Yes"))|>
+           select(reported_date, n)|>
+           rename(severe_case_all = n)
+
+for_all_severe <-
+  merge(for_all_cases, severe_case_count, by = "reported_date", all=TRUE)
+
+for_all_severe[is.na(for_all_severe)]=0
+
+all_cases_chart <- 
+   ggplot(data = for_all_severe, mapping = aes(x = reported_date))+
+  geom_line(mapping = aes(y = all_cases, color = "all_cases"))+
+  geom_line(mapping = aes(y = severe_case_all, color = "severe_case_all"))+
+  scale_color_brewer(palette = "Set1")
+
+all_cases_chart <- all_cases_chart + labs(title = "The numbers of confirmed cases and severe cases by date",
+                                          x = "Date",
+                                          y = "No. of cases")
+
+all_cases_chart <- all_cases_chart + scale_color_discrete(name = "Types of cases", labels = c("Confirmed cases", "Severe cases"))
+
+all_cases_chart 
+
+```
+
+
+
+```{r severecasetable, tab.cap="The ratio of severe cases and confirmed cases", echo = FALSE, message = FALSE, warning = FALSE, fig.align = 'center'}
+
+for_table <- 
+  clean_covid_data_v2|>
+  count(severe_case)|>
+  pivot_wider(names_from = severe_case, values_from = n)|> 
+  mutate("Total" = 268095)|>
+  mutate("Ratio" = 13322/268095)|>
+  mutate_if(is.numeric,
+            round,
+            digits = 3)
+  
+final_table <-
+  for_table|> 
+  kable(col.names = c("No. of confirmed cases", "No. of severe cases", "No. of non-severe cases", "The ratio"),
+        caption = "The ratio of severe cases and confirmed cases", 
+        align = c( "l", "l", "l", "l"),
+             booktabs = TRUE,
+             escape = FALSE)
+
+final_table
+
+```
+\newpage
+
+## Age group
+
+Regarding the factors of demographic, the numbers are presented in percentages to highlight the main groups at higher risk of severe symptoms. In Figure \@ref(fig:withage), 66% of severe cases are up to 60-year-old. The second largest group that up to 23%, is the people aged 40-59-year-old, which is not even a half of the combination for the people aged under 30 (9% for 20-39-year-old and 2% for lower than 19-year-old). It is significant that the risk for severe symptoms and hospitalization with COVID-19 increases with age, with older adults at the highest risk (CDC, n.d.). An analysis found that 78% of the people who died in COVID-19 were aged 65 and older (Gold, et al. 2020). Meanwhile, young people are less likely to have severe cases. It is because the seniors are relatively suffering from long-term medical conditions and have poor immune systems. As age is one of the most obvious factors for developing severe cases, the older age groups should receive better protection during the COVID-19 pandemic.
+
+```{r withage, fig.cap="Age groups in severe cases", echo = FALSE, message = FALSE, warning = FALSE, out.width = "80%", fig.align = "center"}
+
+# build graph 2 - severe cases with age:
+#install.packages("reshape2")
+#install.packages("plotly")
+library("reshape2")
+library("plotly")
+
+for_severe_cases <-
+ clean_covid_data_v2|> 
+ filter(severe_case == "Yes")
+
+for_age_severe <-
+  for_severe_cases|> 
+  count(age_group_new)|> 
+  mutate(percentage=n/sum(n))
+
+pie_age <-
+  ggplot(data = for_age_severe, aes(x = "", y = percentage, fill = age_group_new))+
+  geom_col(color = "grey")+
+  coord_polar("y", start=0)+
+  geom_text(aes(label = paste0(round(percentage*100), "%")),
+            position = position_stack(vjust = 0.5))+
+  theme(panel.background = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        plot.title = element_text(hjust = 0.5, size = 14))
+
+pie_age <- pie_age + labs(title = "Age groups in severe cases")
+
+pie_age <- pie_age + scale_fill_discrete(name = "Age groups") 
+
+pie_age
+
+
+```
+
+## Gender
+
+Gender is another factor that leads to serious symptoms. In Figure \@ref(fig:withgender), 54% of the male makes up 55% of all severe cases, while women are only 46%. The same analysis by Gold (2020) resulted in 53% of male deaths in COVID-19, which reflects that males do have a higher risk of hospitalized and severe cases compared to women. Some researches propose that fundamental biological differences tied to immunology drive an increased risk of severe symptoms in males (Okpechi et al., 2021). Another influencing reason is the behavioral differences. For example, men are more likely to smoke and less willing to seek healthcare (Peckham et al., 2020). Bad health and delay in seeking healthcare support naturally led to a severe situation. The figure is strong support of males being another high-risk group of severe cases.
+
+```{r withgender, fig.cap="Gender in severe cases", echo = FALSE, message = FALSE, warning = FALSE, out.width = "80%", fig.align = "center"}
+
+# build graph 3 - severe cases with gender:
+
+for_gender_severe <-
+  for_severe_cases|> 
+  count(client_gender)|> 
+  mutate(percentage=n/sum(n))
+
+pie_gender <-
+  ggplot(data = for_gender_severe, aes(x = "", y = percentage, fill = client_gender))+
+  geom_col(color = "grey")+
+  coord_polar("y", start=0)+
+  geom_text(aes(label = paste0(round(percentage*100), "%")),
+            position = position_stack(vjust = 0.5))+
+  theme(panel.background = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        plot.title = element_text(hjust = 0.5, size = 14))
+
+pie_gender <- pie_gender + labs(title = "Gender in severe cases")
+
+pie_gender <- pie_gender + scale_fill_discrete(name = "Gender")
+
+pie_gender
+
+
+```
+
+\newpage
+
+## Source of infection
+
+Finally, gaining a better understanding of how people were exposed is a key element to avoiding COVID-19 infection. In Figure \@ref(fig:withsource), the community comprises the largest percentage of severe cases, which is 37%. An effective way to reduce transmission is to limit community-wide contact rates. No information takes up the second place, which is 29% of them. As a contagious disease, it is important to trace and identify the source of infection. Other than that, to be more coherent, consistent, and transparent messaging for people to know about it to prevent high-risk venues. Following with no information, healthcare institutions are the third, which contains 18% of the severe cases, with a higher chance of virus exposure. Healthcare institutions are supposed to be a place to maintain and improve citizens’ health via the prevention and treatment of diseases. It should not be a frequent place for an infection of COVID-19. Apart from the people who work in healthcare, patients with poor immune systems are the major group that appears in a health institution frequently. They should be the ones to receive extra protection rather than a higher exposure. Therefore, strengthening the transparency of the source of infection is an effective method to contain the spread of COVID-19.
+
+```{r withsource, fig.cap="Source of infection in severe cases", echo = FALSE, message = FALSE, warning = FALSE, out.width = "80%", fig.align = "center"}
+
+# build graph 4 - severe cases with source:
+
+for_source_severe <-
+  for_severe_cases|> 
+  count(source_of_infection_new)|> 
+  mutate(percentage=n/sum(n))
+
+pie_source <-
+  ggplot(data = for_source_severe, aes(x = "", y = percentage, fill = source_of_infection_new))+
+  geom_col(color = "grey")+
+  coord_polar("y", start=0)+
+  geom_text(aes(label = paste0(round(percentage*100), "%")),
+            position = position_stack(vjust = 0.5))+
+  theme(panel.background = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        plot.title = element_text(hjust = 0.5, size = 14))
+
+pie_source <- pie_source + labs(title = "Source of infection in severe cases")
+
+pie_source <- pie_source + scale_fill_discrete(name = "Sources") 
+
+pie_source
+
+
+```
+
+## Weaknesses and next steps
+
+Though some relationships between a severe case and patient profile have been found, there are limitations in the report. The data set does not specify those unreported cases, the number of death cases, and other information that might help to analyze the factors that lead to severity, such as whether they have long-term diseases, income details, ethnicity, and so on. Moreover, many cases of the source of infection are not identified. Considering the data set does not contain comprehensive information on all COVID-19 cases, this report can only be seen as a brief look at the severe cases rate and the factors leading to severity factors, but it is not an accurate representation of the actual situations.
+
+# Conclusion
+Two years into the COVID-19 pandemic, it is a certain fact that it does bring an enormous impact and created huge challenges in different segments globally, while the healthcare system has suffered the most. For sure, the public health system in Toronto has extended itself to meet the increased demands of COVID-19 over time, such as the responses with the shift of healthcare resources, promotions of the vaccination programs, etc. However, the severe cases still cause a huge burden to it. As such, what puts people at a higher risk of severity are cost-effective and source-effective needs to be scaled up to prevent it from further weakening the existing health system. The key is to provide better and targeted protection to the high-risk groups of people during the COVID-19 outbreak. Through this report, the high-risk groups have been identified. They are the seniors, the male, and those who are active in the community. Some suggestions and analysis have been provided. Hopefully, a significant improvement can be seen in the near future.  
+
+\newpage
+
+# References
+
+-	CDC. (n.d.). COVID-19 Risks and Vaccine Information for Older Adults. Centers for Disease Control and Prevention. Retrieved on January 31, 2021. https://www.cdc.gov/aging/covid19/covid19-older-adults.html#increased-risk. 
+
+-	CIHI. (2021). COVID-19 expected to push Canada’s health spending beyond $300 billion in 2021. Canadian Institute for Health Information. https://www.cihi.ca/en/covid-19-expected-to-push-canadas-health-spending-beyond-300-billion-in-2021. 
+
+-	Gelfand, S. (2020). Opendatatoronto: Access the City of Toronto Open Data Portal. https://CRAN.Rproject.org/package=opendatatoronto. 
+
+-	Gold, J.A., Rossen, L.M., Ahmad, F.B., et al. (2020) Race, Ethnicity, and Age Trends in Persons Who Died from COVID-19 — United States, May–August 2020. MMWR Morb Mortal Wkly Rep 2020. DOI: http://dx.doi.org/10.15585/mmwr.mm6942e1external icon.
+
+-	Government of Canada. (2022). COVID-19 daily epidemiology update. Retrieved on January 27, 2021. https://health-infobase.canada.ca/covid-19/epidemiological-summary-covid-19-cases.html. 
+
+-	Grolemund, G., Wickham, H. (2011). Dates and Times Made Easy with lubridate. Journal of Statistical Software. https://www.jstatsoft.org/v40/i03/.
+
+-	Horst, A.M., Hill, A.P., Gorman, K.B. (2020). palmerpenguins: Palmer Archipelago (Antarctica) penguin data. R package version 0.1.0. https://allisonhorst.github.io/palmerpenguins. 
+
+-	Okpechi, S.C., Fong, J.T., Gill, S.S., Harman, J.C., Nguyen, T.H., Chukwurah, Q.C., et al. (2021). Global Sex Disparity of COVID-19: A Descriptive Review of Sex Hormones and Consideration for the Potential Therapeutic Use of Hormone Replacement Therapy in Older Adults. Aging and Disease.
+
+-	Peckham, H., Gruijter, N.M., Raine. C, Radziszewska. A, Ciurtin. C, Wedderburn. L.R., et al. (2020). Male Sex Identified by Global COVID-19 Meta-Analysis as a Risk Factor for Death and ITU Admission. Nature Communications.
+
+-	Public Health Agency of Canada (2021). Update on COVID-19 in Canada: Epidemiology and Modelling - September 3, 2021. Government of Canada.
+
+-	R Core Team. (2020). R: A Language and Environment for Statistical Computing. Vienna, Austria: R Foundation for Statistical Computing. https://www.R-project.org/.
+
+-	Statistics Canada. (November 23, 2021). Survey on Access to Health Care and Pharmaceuticals During the Pandemic. March 2020 to May 2021. The Daily. https://www150.statcan.gc.ca/n1/en/daily-quotidien/211123/dq211123b-eng.pdf?st=3MSV2jrm 
+
+-	Statistics Canada (2021). Provisional Death Counts and Excess Mortality. January 2020 to March 2021. The Daily.
+
+-	Toronto Public Health (2022). About COVID-19 Cases in Toronto. https://open.toronto.ca/dataset/covid-19-cases-in-toronto/
+
+-	Wickham, H. (2016). Ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York. https://ggplot2.tidyverse.org.
+
+-	Wickham, H., Mara, A., Jennifer, B., Winston, C., Lucy, D. M, Romain, F., Garrett, G., et al. (2019). Welcome to the tidyverse. Journal of Open Source Software 4 (43): 1686. https://doi.org/10.21105/joss.01686.
+
+-	Wickham, H., Romain, F., Lionel, H., Kirill, M. (2021). Dplyr: A Grammar of Data Manipulation. https://CRAN.R-project.org/package=dplyr. 
+
+-	Xie, Y. (2021). Knitr: A General-Purpose Package for Dynamic Report Generation in R. https://yihui.org/knitr/.
+
+-	Zablotski, Y. (2021). yuzaR-Blog: R package reviews {janitor} clean your data!. https://yuzar-blog.netlify.app/posts/2021-01-02-r-package-reviews-janitor-clean-your-data/. 
+
+
+
